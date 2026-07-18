@@ -125,7 +125,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
   th { color: var(--sub); font-weight: 500; }
   .note { color: var(--sub); font-size: 12px; line-height: 1.8; }
-  .tbl-wrap { max-height: 420px; overflow-y: auto; }
+  .tbl-wrap { max-height: 420px; overflow: auto; }
   #cons tbody tr { cursor: pointer; }
   #cons tbody tr:hover { background: #243050; }
   #cons tbody tr.sel { background: #2a3a5f; }
@@ -165,7 +165,27 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .lb.中性 { background: #2a3550; color: #8b95ab; }
   .lb.imp { background: #22304f; color: #7ea6ff; }
   .news-item .rs { color: var(--sub); font-size: 11px; white-space: nowrap; }
-  @media (max-width: 800px) { .stock-flex { flex-direction: column; } .side { width: 100%; } .side-list { height: 220px; } }
+  @media (max-width: 800px) {
+    body { padding: 12px; }
+    h1 { font-size: 18px; }
+    .sub { font-size: 12px; }
+    .cards { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .card { padding: 10px; } .card .v { font-size: 16px; }
+    .panel { padding: 10px; }
+    #stock { height: 460px; } #ikline { height: 320px; } #nav { height: 300px; }
+    #dd { height: 150px; } #yearly { height: 220px; }
+    .stock-flex { flex-direction: column; }
+    .side { width: 100%; }
+    .side-list { height: 200px; }
+    #tbl { display: block; overflow-x: auto; }
+    .news-item { flex-wrap: wrap; font-size: 12px; }
+    .news-item a { flex-basis: 100%; order: 2; }
+    .news-item .rs { display: none; }
+    .stock-title { font-size: 12px; line-height: 2; }
+    .stock-title b { font-size: 15px; }
+    .badge { margin-left: 0; margin-right: 6px; }
+    th, td { padding: 6px 8px; font-size: 12px; }
+  }
 
   .tt { font-size: 12px; line-height: 1.7; }
   .tt .d { color: #8b95ab; }
@@ -233,6 +253,9 @@ document.getElementById('range').textContent = '数据区间: ' + DATA.range + '
 const cls = v => String(v).startsWith('+') ? 'pos' : (String(v).startsWith('-') ? 'neg' : '');
 const fmtPct = v => v == null ? '—' : (v > 0 ? '+' : '') + v + '%';
 const UP = '#f6465d', DOWN = '#0ecb81';
+const MOB = window.innerWidth < 800;
+const G_L = MOB ? 46 : 60, G_R = MOB ? 38 : 55;   // 带右轴图表(个股K线)边距
+const G_L2 = MOB ? 42 : 55, G_R2 = MOB ? 12 : 20; // 普通图表边距
 
 // ---------- 顶部卡片 ----------
 const bh = DATA.stats[0];
@@ -328,10 +351,10 @@ function renderStock(s) {
     legend: { textStyle: {color:'#e8ecf4'}, data: ['K线','MA5','MA10','MA20','MA60','成交量','市盈率TTM','市净率','5日上涨概率'] },
     axisPointer: { link: [{ xAxisIndex: 'all' }] },
     grid: [
-      { left: 60, right: 55, top: 36, height: '44%' },
-      { left: 60, right: 55, top: '56%', height: '8%' },
-      { left: 60, right: 55, top: '68%', height: '12%' },
-      { left: 60, right: 55, top: '84%', height: '11%' },
+      { left: G_L, right: G_R, top: 36, height: '44%' },
+      { left: G_L, right: G_R, top: '56%', height: '8%' },
+      { left: G_L, right: G_R, top: '68%', height: '12%' },
+      { left: G_L, right: G_R, top: '84%', height: '11%' },
     ],
     xAxis: [0, 1, 2, 3].map(g => ({ type: 'category', gridIndex: g, data: s.dates, ...axisStyle,
       axisLabel: g === 3 ? axisStyle.axisLabel : { show: false } })),
@@ -401,8 +424,8 @@ iChart.setOption({
   legend: { textStyle: {color:'#e8ecf4'}, data: ['K线','MA5','MA10','MA20','MA60'] },
   axisPointer: { link: [{ xAxisIndex: 'all' }] },
   grid: [
-    { left: 60, right: 20, top: 36, height: '62%' },
-    { left: 60, right: 20, top: '76%', height: '14%' },
+    { left: G_L, right: G_R2, top: 36, height: '62%' },
+    { left: G_L, right: G_R2, top: '76%', height: '14%' },
   ],
   xAxis: [0, 1].map(g => ({ type: 'category', gridIndex: g, data: DATA.dates, ...axisStyle,
     axisLabel: g === 1 ? axisStyle.axisLabel : { show: false } })),
@@ -438,7 +461,7 @@ navChart.setOption({
     return html + '</div>';
   }},
   legend: { textStyle: {color:'#e8ecf4'} },
-  grid: { left: 55, right: 20, top: 40, bottom: 60 },
+  grid: { left: G_L2, right: G_R2, top: 40, bottom: 60 },
   xAxis: { type: 'category', data: DATA.dates, ...axisStyle },
   yAxis: { type: 'value', scale: true, ...axisStyle, splitLine:{lineStyle:{color:'#222c42'}} },
   dataZoom: [{ type: 'inside' }, { type: 'slider', bottom: 10 }],
@@ -452,7 +475,7 @@ const ddChart = echarts.init(document.getElementById('dd'));
 ddChart.setOption({
   backgroundColor: 'transparent',
   tooltip: { trigger: 'axis', valueFormatter: v => v + '%' },
-  grid: { left: 55, right: 20, top: 10, bottom: 25 },
+  grid: { left: G_L2, right: G_R2, top: 10, bottom: 25 },
   xAxis: { type: 'category', data: DATA.dates, ...axisStyle },
   yAxis: { type: 'value', ...axisStyle, splitLine:{lineStyle:{color:'#222c42'}}, axisLabel:{color:'#8b95ab', formatter:'{value}%'} },
   series: [{ type: 'line', data: DATA.drawdown, showSymbol: false,
@@ -464,7 +487,7 @@ const yChart = echarts.init(document.getElementById('yearly'));
 yChart.setOption({
   backgroundColor: 'transparent',
   tooltip: { trigger: 'axis', valueFormatter: v => v + '%' },
-  grid: { left: 55, right: 20, top: 20, bottom: 25 },
+  grid: { left: G_L2, right: G_R2, top: 20, bottom: 25 },
   xAxis: { type: 'category', data: DATA.yearly.years, ...axisStyle },
   yAxis: { type: 'value', ...axisStyle, splitLine:{lineStyle:{color:'#222c42'}}, axisLabel:{color:'#8b95ab', formatter:'{value}%'} },
   series: [{ type: 'bar', data: DATA.yearly.values.map(v => ({

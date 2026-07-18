@@ -1,0 +1,5 @@
+deepseek_key.txt
+.venv/
+data/
+__pycache__/
+*.pyc

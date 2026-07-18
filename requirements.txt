@@ -1,0 +1,5 @@
+akshare
+pandas
+matplotlib
+scikit-learn
+requests

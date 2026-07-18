@@ -1,0 +1,47 @@
+name: daily-update
+
+on:
+  schedule:
+    # UTC 10:37 = 北京时间 18:37, A股收盘后更新
+    - cron: '37 10 * * *'
+  workflow_dispatch:  # 允许在 Actions 页面手动触发
+
+permissions:
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  update-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      # data/ 在 .gitignore 里, 用 Actions 缓存实现跨运行的增量更新
+      - uses: actions/cache@v4
+        with:
+          path: data
+          key: data-${{ github.run_id }}
+          restore-keys: data-
+
+      - run: pip install -r requirements.txt
+
+      # key 只存在于 Secrets, 通过环境变量注入, 不落盘不进日志
+      - name: 更新数据并重建网页
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: python update.py
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - uses: actions/deploy-pages@v4

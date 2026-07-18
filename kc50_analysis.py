@@ -78,7 +78,7 @@ def main():
             print(f"  {k}: {v}")
 
     # 年度收益
-    yearly = (1 + ret).resample("Y").prod() - 1
+    yearly = (1 + ret).resample("YE").prod() - 1
     print("\n== 分年度收益 ==")
     for d, r in yearly.items():
         print(f"  {d.year}: {r:+.1%}")

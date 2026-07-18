@@ -33,7 +33,7 @@ def build_index_data():
 
     bench = curves["买入持有"]
     dd = bench / bench.cummax() - 1
-    yearly = ((1 + ret).resample("Y").prod() - 1)
+    yearly = ((1 + ret).resample("YE").prod() - 1)
 
     dates = [d.strftime("%Y-%m-%d") for d in close.index]
     return {

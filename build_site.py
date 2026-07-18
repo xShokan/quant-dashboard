@@ -323,17 +323,17 @@ function renderStock(s) {
     { name: 'K线', type: 'candlestick', xAxisIndex: 0, yAxisIndex: 0, data: s.kline,
       itemStyle: { color: UP, color0: DOWN, borderColor: UP, borderColor0: DOWN } },
     ...[5, 10, 20, 60].map((n, i) => ({
-      name: 'MA' + n, type: 'line', xAxisIndex: 0, yAxisIndex: 0,
+      name: 'MA' + n, type: 'line', xAxisIndex: 0, yAxisIndex: 0, sampling: 'lttb',
       data: calcMA(n, s.kline), showSymbol: false, smooth: true,
       lineStyle: { width: 1 }, itemStyle: { color: ['#f6bd16','#945fb9','#5b8ff9','#8b95ab'][i] } })),
     { name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1,
       data: s.vol.map((v, i) => ({ value: v, itemStyle: { color: s.kline[i][1] >= s.kline[i][0] ? UP : DOWN } })) },
     { name: '市盈率TTM', type: 'line', xAxisIndex: 2, yAxisIndex: 2, data: peSeries,
-      showSymbol: false, connectNulls: true, lineStyle: { width: 1.2 }, itemStyle: { color: '#f6bd16' } },
+      showSymbol: false, connectNulls: true, sampling: 'lttb', lineStyle: { width: 1.2 }, itemStyle: { color: '#f6bd16' } },
     { name: '市净率', type: 'line', xAxisIndex: 2, yAxisIndex: 3, data: pbSeries,
-      showSymbol: false, connectNulls: true, lineStyle: { width: 1.2 }, itemStyle: { color: '#945fb9' } },
+      showSymbol: false, connectNulls: true, sampling: 'lttb', lineStyle: { width: 1.2 }, itemStyle: { color: '#945fb9' } },
     { name: '5日上涨概率', type: 'line', xAxisIndex: 3, yAxisIndex: 4, data: probSeries,
-      showSymbol: false, lineStyle: { width: 1.2 }, itemStyle: { color: '#7ea6ff' },
+      showSymbol: false, sampling: 'lttb', lineStyle: { width: 1.2 }, itemStyle: { color: '#7ea6ff' },
       areaStyle: { opacity: 0.15 }, connectNulls: true,
       markLine: { silent: true, symbol: 'none', data: [{ yAxis: 0.5 }],
         lineStyle: { color: '#8b95ab', type: 'dashed', width: 1 }, label: { show: false } } },
@@ -347,11 +347,13 @@ function renderStock(s) {
 
   stockChart.setOption({
     backgroundColor: 'transparent',
+    animation: false,
     tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, formatter: stockTooltip },
-    legend: { textStyle: {color:'#e8ecf4'}, data: ['K线','MA5','MA10','MA20','MA60','成交量','市盈率TTM','市净率','5日上涨概率'] },
+    legend: { type: 'scroll', textStyle: {color:'#e8ecf4', fontSize: MOB ? 10 : 12},
+      data: ['K线','MA5','MA10','MA20','MA60','成交量','市盈率TTM','市净率','5日上涨概率'] },
     axisPointer: { link: [{ xAxisIndex: 'all' }] },
     grid: [
-      { left: G_L, right: G_R, top: 36, height: '44%' },
+      { left: G_L, right: G_R, top: MOB ? 58 : 36, height: '44%' },
       { left: G_L, right: G_R, top: '56%', height: '8%' },
       { left: G_L, right: G_R, top: '68%', height: '12%' },
       { left: G_L, right: G_R, top: '84%', height: '11%' },
@@ -366,7 +368,10 @@ function renderStock(s) {
       { gridIndex: 3, min: 0, max: 1, ...axisStyle, splitLine:{lineStyle:{color:'#222c42'}},
         axisLabel: { color: '#8b95ab', formatter: v => Math.round(v*100) + '%' } },
     ],
-    dataZoom: [{ type: 'inside', xAxisIndex: [0,1,2,3] }, { type: 'slider', bottom: 4, xAxisIndex: [0,1,2,3] }],
+    dataZoom: [
+      { type: 'inside', xAxisIndex: [0,1,2,3], throttle: 40, start: MOB ? 55 : 0, end: 100 },
+      { type: 'slider', bottom: 4, xAxisIndex: [0,1,2,3], start: MOB ? 55 : 0, end: 100, height: MOB ? 14 : 20 },
+    ],
     series,
   }, true);
 
@@ -420,11 +425,12 @@ document.getElementById('search').oninput = e => renderSide(e.target.value);
 const iChart = echarts.init(document.getElementById('ikline'));
 iChart.setOption({
   backgroundColor: 'transparent',
+  animation: false,
   tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
-  legend: { textStyle: {color:'#e8ecf4'}, data: ['K线','MA5','MA10','MA20','MA60'] },
+  legend: { type: 'scroll', textStyle: {color:'#e8ecf4', fontSize: MOB ? 10 : 12}, data: ['K线','MA5','MA10','MA20','MA60'] },
   axisPointer: { link: [{ xAxisIndex: 'all' }] },
   grid: [
-    { left: G_L, right: G_R2, top: 36, height: '62%' },
+    { left: G_L, right: G_R2, top: MOB ? 58 : 36, height: '62%' },
     { left: G_L, right: G_R2, top: '76%', height: '14%' },
   ],
   xAxis: [0, 1].map(g => ({ type: 'category', gridIndex: g, data: DATA.dates, ...axisStyle,
@@ -433,12 +439,15 @@ iChart.setOption({
     { gridIndex: 0, scale: true, ...axisStyle, splitLine:{lineStyle:{color:'#222c42'}} },
     { gridIndex: 1, ...axisStyle, axisLabel: { show: false }, splitLine: { show: false } },
   ],
-  dataZoom: [{ type: 'inside', xAxisIndex: [0,1] }, { type: 'slider', bottom: 4, xAxisIndex: [0,1] }],
+  dataZoom: [
+    { type: 'inside', xAxisIndex: [0,1], throttle: 40, start: MOB ? 55 : 0, end: 100 },
+    { type: 'slider', bottom: 4, xAxisIndex: [0,1], start: MOB ? 55 : 0, end: 100, height: MOB ? 14 : 20 },
+  ],
   series: [
     { name: 'K线', type: 'candlestick', xAxisIndex: 0, yAxisIndex: 0, data: DATA.kline,
       itemStyle: { color: UP, color0: DOWN, borderColor: UP, borderColor0: DOWN } },
     ...[5, 10, 20, 60].map((n, i) => ({
-      name: 'MA' + n, type: 'line', xAxisIndex: 0, yAxisIndex: 0,
+      name: 'MA' + n, type: 'line', xAxisIndex: 0, yAxisIndex: 0, sampling: 'lttb',
       data: calcMA(n, DATA.kline), showSymbol: false, smooth: true,
       lineStyle: { width: 1 }, itemStyle: { color: ['#f6bd16','#945fb9','#5b8ff9','#8b95ab'][i] } })),
     { name: '成交量', type: 'bar', xAxisIndex: 1, yAxisIndex: 1,
@@ -450,6 +459,7 @@ iChart.setOption({
 const navChart = echarts.init(document.getElementById('nav'));
 navChart.setOption({
   backgroundColor: 'transparent', color: colors,
+  animation: false,
   tooltip: { trigger: 'axis', formatter: params => {
     let html = `<div class="tt"><span class="d">${params[0].axisValue}</span><br>`;
     params.forEach(p => {
@@ -460,13 +470,16 @@ navChart.setOption({
     });
     return html + '</div>';
   }},
-  legend: { textStyle: {color:'#e8ecf4'} },
-  grid: { left: G_L2, right: G_R2, top: 40, bottom: 60 },
+  legend: { type: 'scroll', textStyle: {color:'#e8ecf4', fontSize: MOB ? 10 : 12} },
+  grid: { left: G_L2, right: G_R2, top: MOB ? 52 : 40, bottom: 60 },
   xAxis: { type: 'category', data: DATA.dates, ...axisStyle },
   yAxis: { type: 'value', scale: true, ...axisStyle, splitLine:{lineStyle:{color:'#222c42'}} },
-  dataZoom: [{ type: 'inside' }, { type: 'slider', bottom: 10 }],
+  dataZoom: [
+    { type: 'inside', throttle: 40, start: MOB ? 55 : 0, end: 100 },
+    { type: 'slider', bottom: 10, start: MOB ? 55 : 0, end: 100, height: MOB ? 14 : 20 },
+  ],
   series: Object.entries(DATA.series).map(([name, vals]) => ({
-    name, type: 'line', data: vals, showSymbol: false, lineStyle: { width: 1.5 }
+    name, type: 'line', data: vals, showSymbol: false, sampling: 'lttb', lineStyle: { width: 1.5 }
   }))
 });
 

@@ -55,6 +55,14 @@ def build_stock_data():
     if (PRED_DIR / "_summary.json").exists():
         pred_summary = json.loads((PRED_DIR / "_summary.json").read_text())
 
+    def _probs_pred(code):
+        probs, pred = [], pred_summary.get(code, {})
+        pf = PRED_DIR / f"{code}.csv"
+        if pf.exists():
+            p = pd.read_csv(pf)
+            probs = [[str(r["date"]), round(float(r["prob"]), 3)] for _, r in p.iterrows()]
+        return probs, {k: pred[k] for k in ("样本数", "模型胜率", "基准胜率", "最新概率") if k in pred}
+
     stocks = fetch_all()
     out = []
     for code, v in stocks.items():
@@ -71,21 +79,14 @@ def build_stock_data():
             pct = ret.get(d)
             info[ds] = [round(float(pct) * 100, 2) if pd.notna(pct) else None, pe, pb]
 
-        # 预测概率
-        probs, pred = [], pred_summary.get(code, {})
-        pf = PRED_DIR / f"{code}.csv"
-        if pf.exists():
-            p = pd.read_csv(pf)
-            probs = [[str(r["date"]), round(float(r["prob"]), 3)] for _, r in p.iterrows()]
-
-        # 新闻情绪
+        probs, pred = _probs_pred(code)
         news = []
         nf = NEWS_DIR / f"{code}.json"
         if nf.exists():
             news = json.loads(nf.read_text())
 
         out.append({
-            "code": code, "name": v["name"],
+            "code": code, "name": v["name"], "mkt": "a",
             "stats": stock_stats(df),
             "dates": [d.strftime("%Y-%m-%d") for d in df.index],
             "kline": [[round(float(r.open), 2), round(float(r.close), 2),
@@ -93,9 +94,39 @@ def build_stock_data():
             "vol": [int(x) for x in df["volume"]],
             "info": info,
             "probs": probs,
-            "pred": {k: pred[k] for k in ("样本数", "模型胜率", "基准胜率", "最新概率") if k in pred},
+            "pred": pred,
             "news": news,
         })
+
+    # 美股 (无估值数据, 新闻为英文+DeepSeek中文翻译)
+    from us_data import fetch_us_all, US_NEWS_DIR
+    for code, v in fetch_us_all().items():
+        df = v["df"]
+        close = df["close"]
+        ret = close.pct_change()
+        info = {}
+        for d, c in close.items():
+            ds = d.strftime("%Y-%m-%d")
+            pct = ret.get(d)
+            info[ds] = [round(float(pct) * 100, 2) if pd.notna(pct) else None, None, None]
+        probs, pred = _probs_pred(code)
+        news = []
+        nf = US_NEWS_DIR / f"{code}.json"
+        if nf.exists():
+            news = json.loads(nf.read_text())
+        out.append({
+            "code": code, "name": v["name"], "mkt": "us",
+            "stats": stock_stats(df),
+            "dates": [d.strftime("%Y-%m-%d") for d in df.index],
+            "kline": [[round(float(r.open), 2), round(float(r.close), 2),
+                       round(float(r.low), 2), round(float(r.high), 2)] for _, r in df.iterrows()],
+            "vol": [int(x) for x in df["volume"]],
+            "info": info,
+            "probs": probs,
+            "pred": pred,
+            "news": news,
+        })
+
     out.sort(key=lambda s: float(s["stats"]["累计收益"].strip("+%")) if s["stats"] else 0, reverse=True)
     return out
 
@@ -138,6 +169,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .side input { background: #0f1420; border: 1px solid var(--line); color: var(--fg);
     border-radius: 8px; padding: 8px 10px; font-size: 13px; outline: none; margin-bottom: 8px; }
   .side input:focus { border-color: #5b8ff9; }
+  .mkt-tabs { display: flex; gap: 6px; margin-bottom: 8px; }
+  .mkt-tabs button { flex: 1; background: #0f1420; color: var(--sub); border: 1px solid var(--line);
+    border-radius: 8px; padding: 8px 0; font-size: 13px; cursor: pointer; }
+  .mkt-tabs button.sel { background: #22304f; color: var(--fg); border-color: #5b8ff9; }
   .side-list { overflow-y: auto; height: 640px; border: 1px solid var(--line); border-radius: 8px; }
   .side-item { display: flex; justify-content: space-between; align-items: center;
     padding: 8px 10px; cursor: pointer; border-bottom: 1px solid #202a42; font-size: 13px; }
@@ -199,7 +234,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
 </head>
 <body>
 <div class="wrap">
-  <h1>科创50 (000688) 量化分析</h1>
+  <h1>量化分析看板: 科创50 + 美股精选</h1>
   <div class="sub" id="range"></div>
 
   <div class="cards" id="cards"></div>
@@ -208,6 +243,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
     <h2>成分股个股 <span class="note">(K线前复权; 悬浮查看涨幅/市盈率/市净率/预测概率)</span></h2>
     <div class="stock-flex">
       <div class="side">
+        <div class="mkt-tabs" id="mkt-tabs">
+          <button data-m="a" class="sel">科创50</button>
+          <button data-m="us">美股精选</button>
+        </div>
         <input id="search" placeholder="搜索代码或名称...">
         <div class="side-list" id="side-list"></div>
       </div>
@@ -427,15 +466,27 @@ function renderNews(s) {
     const lb = n.label ? `<span class="lb ${n.label}">${n.label}</span>` : '';
     const imp = n.impact ? `<span class="lb imp">${n.impact}</span>` : '';
     const rs = n.reason ? `<span class="rs">${n.reason}</span>` : '';
-    return `<div class="news-item"><span class="t">${(n.time||'').slice(0,16)}</span>${src}${lb}${imp}<a href="${n.link}" target="_blank">${n.title}</a>${rs}</div>`;
+    const tt = n.title_zh || n.title;
+    return `<div class="news-item"><span class="t">${(n.time||'').slice(0,16)}</span>${src}${lb}${imp}<a href="${n.link}" target="_blank" title="${n.title_zh ? n.title : ''}">${tt}</a>${rs}</div>`;
   }).join('');
 }
 
 // ---------- 侧栏选择器 ----------
+let curMkt = 'a';
+document.querySelectorAll('#mkt-tabs button').forEach(btn => btn.onclick = () => {
+  curMkt = btn.dataset.m;
+  document.querySelectorAll('#mkt-tabs button').forEach(b => b.classList.toggle('sel', b === btn));
+  document.getElementById('search').value = '';
+  renderSide();
+  renderCons();
+  const first = STOCKS.find(s => s.mkt === curMkt);
+  if (first) renderStock(first);
+});
+
 function renderSide(filter = '') {
   const kw = filter.trim();
   document.getElementById('side-list').innerHTML = STOCKS
-    .filter(s => !kw || s.code.includes(kw) || s.name.includes(kw))
+    .filter(s => s.mkt === curMkt && (!kw || s.code.includes(kw) || s.name.includes(kw)))
     .map(s => `<div class="side-item ${s.code === selCode ? 'sel' : ''}" data-code="${s.code}">
       <span class="nm">${s.name}<br><span class="cd">${s.code}</span></span>
       <span class="rt ${cls(s.stats['累计收益'])}">${s.stats['累计收益']}</span></div>`)
@@ -551,7 +602,7 @@ let sortKey = '累计收益', sortAsc = false;
 
 function renderCons() {
   const num = COLS.find(c => c[0] === sortKey)[2];
-  const rows = [...STOCKS].sort((a, b) => {
+  const rows = STOCKS.filter(s => s.mkt === curMkt).sort((a, b) => {
     const va = num ? num(a.stats[sortKey] ?? a[sortKey]) : (a.stats[sortKey] ?? a[sortKey]);
     const vb = num ? num(b.stats[sortKey] ?? b[sortKey]) : (b.stats[sortKey] ?? b[sortKey]);
     return (va > vb ? 1 : va < vb ? -1 : 0) * (sortAsc ? 1 : -1);
@@ -580,7 +631,7 @@ function renderCons() {
 
 renderSide();
 renderCons();
-renderStock(STOCKS[0]);
+renderStock(STOCKS.find(s => s.mkt === 'a') || STOCKS[0]);
 
 window.addEventListener('resize', () => [iChart, navChart, ddChart, yChart, stockChart].forEach(c => c.resize()));
 </script>

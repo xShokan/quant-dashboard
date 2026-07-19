@@ -94,6 +94,18 @@ def main():
         except Exception as e:
             summaries[code] = {"error": f"{type(e).__name__}: {e}"}
             print(f"{code} {v['name']} 失败: {e}")
+    try:
+        from us_data import fetch_us_all
+        for code, v in fetch_us_all().items():
+            try:
+                summaries[code] = run_stock(code, v["df"])
+                summaries[code]["name"] = v["name"]
+                print(f"{code} {v['name']}: {summaries[code]}")
+            except Exception as e:
+                summaries[code] = {"error": f"{type(e).__name__}: {e}"}
+                print(f"{code} {v['name']} 失败: {e}")
+    except Exception as e:
+        print(f"美股预测跳过: {type(e).__name__}: {e}")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     with open(OUT_DIR / "_summary.json", "w", encoding="utf-8") as f:
         json.dump(summaries, f, ensure_ascii=False, indent=1)

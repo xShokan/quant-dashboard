@@ -371,8 +371,8 @@ function renderStock(s) {
         axisLabel: { color: '#8b95ab', formatter: v => Math.round(v*100) + '%' } },
     ],
     dataZoom: [
-      { type: 'inside', xAxisIndex: [0,1,2,3], throttle: 40, start: MOB ? 55 : 0, end: 100 },
-      { type: 'slider', bottom: 4, xAxisIndex: [0,1,2,3], start: MOB ? 55 : 0, end: 100, height: MOB ? 14 : 20 },
+      { type: 'inside', xAxisIndex: [0,1,2,3], throttle: 40, start: MOB ? 55 : 0, end: 100, disabled: MOB },
+      { type: 'slider', bottom: 4, xAxisIndex: [0,1,2,3], start: MOB ? 55 : 0, end: 100, height: MOB ? 18 : 20 },
     ],
     series,
   }, true);
@@ -443,8 +443,8 @@ iChart.setOption({
     { gridIndex: 1, ...axisStyle, axisLabel: { show: false }, splitLine: { show: false } },
   ],
   dataZoom: [
-    { type: 'inside', xAxisIndex: [0,1], throttle: 40, start: MOB ? 55 : 0, end: 100 },
-    { type: 'slider', bottom: 4, xAxisIndex: [0,1], start: MOB ? 55 : 0, end: 100, height: MOB ? 14 : 20 },
+    { type: 'inside', xAxisIndex: [0,1], throttle: 40, start: MOB ? 55 : 0, end: 100, disabled: MOB },
+    { type: 'slider', bottom: 4, xAxisIndex: [0,1], start: MOB ? 55 : 0, end: 100, height: MOB ? 18 : 20 },
   ],
   series: [
     { name: 'K线', type: 'candlestick', xAxisIndex: 0, yAxisIndex: 0, data: DATA.kline,
@@ -478,8 +478,8 @@ navChart.setOption({
   xAxis: { type: 'category', data: DATA.dates, ...axisStyle },
   yAxis: { type: 'value', scale: true, ...axisStyle, splitLine:{lineStyle:{color:'#222c42'}} },
   dataZoom: [
-    { type: 'inside', throttle: 40, start: MOB ? 55 : 0, end: 100 },
-    { type: 'slider', bottom: 10, start: MOB ? 55 : 0, end: 100, height: MOB ? 14 : 20 },
+    { type: 'inside', throttle: 40, start: MOB ? 55 : 0, end: 100, disabled: MOB },
+    { type: 'slider', bottom: 10, start: MOB ? 55 : 0, end: 100, height: MOB ? 18 : 20 },
   ],
   series: Object.entries(DATA.series).map(([name, vals]) => ({
     name, type: 'line', data: vals, showSymbol: false, sampling: 'lttb', lineStyle: { width: 1.5 }

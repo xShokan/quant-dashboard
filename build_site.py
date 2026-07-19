@@ -155,7 +155,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .badge.sent-neg { background: #14332a; color: #0ecb81; }
   .badge.sent-mid { background: #2a3550; color: #8b95ab; }
   #stock { height: 640px; }
-  .news-box { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 10px; }
+  .news-box { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 10px; max-height: 380px; overflow-y: auto; }
   .news-item { display: flex; gap: 8px; padding: 6px 4px; font-size: 13px; border-bottom: 1px dashed #202a42; align-items: baseline; }
   .news-item .t { color: var(--sub); font-size: 11px; white-space: nowrap; }
   .news-item a { color: var(--fg); text-decoration: none; flex: 1; }
@@ -164,6 +164,8 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .lb.利好 { background: #3d1f2a; color: #f6465d; } .lb.利空 { background: #14332a; color: #0ecb81; }
   .lb.中性 { background: #2a3550; color: #8b95ab; }
   .lb.imp { background: #22304f; color: #7ea6ff; }
+  .lb.src-公告 { background: #3a2f16; color: #f6bd16; }
+  .lb.src-新闻 { background: #2a3550; color: #8b95ab; }
   .news-item .rs { color: var(--sub); font-size: 11px; white-space: nowrap; }
   @media (max-width: 800px) {
     body { padding: 12px; }
@@ -399,11 +401,12 @@ function renderNews(s) {
   } else {
     head = `<div class="note">最新新闻 (等待 DeepSeek 打分)</div>`;
   }
-  box.innerHTML = head + s.news.slice(0, 10).map(n => {
+  box.innerHTML = head + s.news.slice(0, 18).map(n => {
+    const src = `<span class="lb src-${n.source || '新闻'}">${n.source || '新闻'}</span>`;
     const lb = n.label ? `<span class="lb ${n.label}">${n.label}</span>` : '';
     const imp = n.impact ? `<span class="lb imp">${n.impact}</span>` : '';
     const rs = n.reason ? `<span class="rs">${n.reason}</span>` : '';
-    return `<div class="news-item"><span class="t">${(n.time||'').slice(0,16)}</span>${lb}${imp}<a href="${n.link}" target="_blank">${n.title}</a>${rs}</div>`;
+    return `<div class="news-item"><span class="t">${(n.time||'').slice(0,16)}</span>${src}${lb}${imp}<a href="${n.link}" target="_blank">${n.title}</a>${rs}</div>`;
   }).join('');
 }
 

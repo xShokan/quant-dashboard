@@ -204,6 +204,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .lb.中性 { background: #2a3550; color: #8b95ab; }
   .lb.imp { background: #22304f; color: #7ea6ff; }
   .lb.src-公告 { background: #3a2f16; color: #f6bd16; }
+  .lb.src-快讯 { background: #123a3a; color: #5fd4d0; }
   .lb.src-新闻 { background: #2a3550; color: #8b95ab; }
   .news-item .rs { color: var(--sub); font-size: 11px; white-space: nowrap; }
   @media (max-width: 800px) {

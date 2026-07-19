@@ -178,11 +178,11 @@ def main():
         summary[code] = {"name": name, **agg}
         print(f"{code} {name}: 新闻{len(news)}条, 新打分{n}条, {agg}")
         time.sleep(0.3)
-    # 美股: Google News RSS + DeepSeek 翻译/打分
+    # 美股/韩股: Google News RSS + DeepSeek 翻译/打分
     try:
-        from us_data import US_STOCKS, US_NEWS_DIR, fetch_us_news
-        for ticker, name in US_STOCKS:
-            news = fetch_us_news(ticker, name)
+        from us_data import US_NEWS_DIR, overseas_stocks, fetch_us_news
+        for ticker, name, query in overseas_stocks():
+            news = fetch_us_news(ticker, name, query)
             try:
                 n = deepseek_score(ticker, name, news, us=True)
             except Exception as e:

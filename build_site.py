@@ -245,7 +245,7 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       <div class="side">
         <div class="mkt-tabs" id="mkt-tabs">
           <button data-m="a" class="sel">科创50</button>
-          <button data-m="us">美股精选</button>
+          <button data-m="us">海外精选</button>
         </div>
         <input id="search" placeholder="搜索代码或名称...">
         <div class="side-list" id="side-list"></div>

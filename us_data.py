@@ -22,7 +22,16 @@ US_STOCKS = [
     ("NVDA", "英伟达"), ("AAPL", "苹果"), ("MSFT", "微软"), ("GOOGL", "谷歌"),
     ("AMZN", "亚马逊"), ("META", "Meta"), ("TSLA", "特斯拉"), ("AVGO", "博通"),
     ("AMD", "超威半导体"), ("MU", "美光科技"), ("SMCI", "超微电脑"), ("PLTR", "Palantir"),
-    ("ARM", "ARM控股"), ("INTC", "英特尔"), ("QCOM", "高通"),
+    ("ARM", "ARM控股"), ("INTC", "英特尔"), ("QCOM", "高通"), ("GLW", "康宁"),
+    ("SKHY", "SK海力士ADR"),
+]
+
+# 个别标的新闻检索词覆盖 (默认 "{ticker} stock")
+NEWS_QUERY = {"SKHY": "SK hynix ADR"}
+
+# 韩股 (naver 数据源, 未复权): (代码, 名称, 新闻检索词)
+KR_STOCKS = [
+    ("000660", "SK海力士", "SK hynix"),
 ]
 
 YEARS = 10  # 只保留最近10年数据, 控制网页体积
@@ -45,6 +54,32 @@ def fetch_us_daily(ticker: str) -> pd.DataFrame:
     return df[df["date"] >= cutoff].set_index("date")
 
 
+def fetch_kr_daily(code: str) -> pd.DataFrame:
+    """Naver fchart 韩股日线 (未复权), 缓存 data/us/{code}.csv"""
+    import re
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    f = DATA_DIR / f"{code}.csv"
+    if f.exists() and pd.Timestamp.today() - pd.Timestamp(f.stat().st_mtime, unit="s") < pd.Timedelta(days=1):
+        df = pd.read_csv(f, parse_dates=["date"])
+    else:
+        start = (pd.Timestamp.today() - pd.Timedelta(days=int(YEARS * 365.25))).strftime("%Y%m%d")
+        end = pd.Timestamp.today().strftime("%Y%m%d")
+        url = (f"https://fchart.stock.naver.com/siseJson.nhn?symbol={code}"
+               f"&requestType=1&startTime={start}&endTime={end}&timeframe=day")
+        r = requests.get(url, timeout=20, headers={"User-Agent": "Mozilla/5.0"})
+        r.raise_for_status()
+        rows = re.findall(r'\["(\d{8})",\s*([\d.]+),\s*([\d.]+),\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)',
+                          r.text)
+        df = pd.DataFrame(rows, columns=["date", "open", "high", "low", "close", "volume"])
+        df["date"] = pd.to_datetime(df["date"], format="%Y%m%d")
+        for c in ("open", "high", "low", "close", "volume"):
+            df[c] = df[c].astype(float)
+        df.to_csv(f, index=False)
+        time.sleep(0.5)
+    df["date"] = pd.to_datetime(df["date"])
+    return df.sort_values("date").set_index("date")
+
+
 def fetch_us_all() -> dict:
     out = {}
     for ticker, name in US_STOCKS:
@@ -52,17 +87,27 @@ def fetch_us_all() -> dict:
             out[ticker] = {"name": name, "df": fetch_us_daily(ticker)}
         except Exception as e:
             print(f"  {ticker} {name} 行情获取失败: {type(e).__name__}")
+    for code, name, _q in KR_STOCKS:
+        try:
+            out[code] = {"name": name, "df": fetch_kr_daily(code)}
+        except Exception as e:
+            print(f"  {code} {name} 行情获取失败: {type(e).__name__}: {str(e)[:80]}")
     return out
 
 
-def fetch_us_news(ticker: str, name: str, limit: int = 12) -> list:
+def overseas_stocks() -> list:
+    """全部海外标的: [(代码, 名称, 新闻检索词或None)]"""
+    return [(t, n, NEWS_QUERY.get(t)) for t, n in US_STOCKS] + list(KR_STOCKS)
+
+
+def fetch_us_news(ticker: str, name: str, query: str = None, limit: int = 12) -> list:
     """Google News RSS 个股新闻, 缓存合并(按链接去重), 返回 [{time,title,link,source,title_zh,score,...}]"""
     US_NEWS_DIR.mkdir(parents=True, exist_ok=True)
     f = US_NEWS_DIR / f"{ticker}.json"
     cached = json.loads(f.read_text()) if f.exists() else []
     by_link = {n["link"]: n for n in cached}
     try:
-        q = urllib.parse.quote(f"{ticker} stock")
+        q = urllib.parse.quote(query or f"{ticker} stock")
         url = f"https://news.google.com/rss/search?q={q}&hl=en-US&gl=US&ceid=US:en"
         r = requests.get(url, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
         r.raise_for_status()
@@ -87,11 +132,11 @@ def fetch_us_news(ticker: str, name: str, limit: int = 12) -> list:
 
 if __name__ == "__main__":
     stocks = fetch_us_all()
-    print(f"行情: {len(stocks)}/{len(US_STOCKS)} 只")
+    print(f"行情: {len(stocks)}/{len(overseas_stocks())} 只")
     for t, v in stocks.items():
         print(f"  {t} {v['name']}: {v['df'].index[0].date()} ~ {v['df'].index[-1].date()}, {len(v['df'])} 条")
     n_ok = 0
-    for ticker, name in US_STOCKS:
-        news = fetch_us_news(ticker, name)
+    for ticker, name, query in overseas_stocks():
+        news = fetch_us_news(ticker, name, query)
         n_ok += bool(news)
-    print(f"新闻: {n_ok}/{len(US_STOCKS)} 只")
+    print(f"新闻: {n_ok}/{len(overseas_stocks())} 只")

@@ -147,6 +147,10 @@ HTML_TEMPLATE = """<!DOCTYPE html>
   .side-item .cd { color: var(--sub); font-size: 11px; }
   .side-item .rt { font-size: 12px; margin-left: 6px; }
   .stock-main { flex: 1; min-width: 0; }
+  .zoom-btns { display: flex; gap: 6px; margin: 4px 0 6px; }
+  .zoom-btns button { background: #22304f; color: var(--fg); border: 1px solid var(--line);
+    border-radius: 6px; padding: 4px 12px; font-size: 12px; cursor: pointer; }
+  .zoom-btns button:active, .zoom-btns button.sel { background: #5b8ff9; border-color: #5b8ff9; }
   .stock-title { font-size: 14px; color: var(--sub); margin-bottom: 6px; }
   .stock-title b { color: var(--fg); font-size: 17px; }
   .badge { display: inline-block; border-radius: 6px; padding: 2px 8px; font-size: 12px; margin-left: 6px; }
@@ -209,13 +213,14 @@ HTML_TEMPLATE = """<!DOCTYPE html>
       </div>
       <div class="stock-main">
         <div class="stock-title" id="stock-title"></div>
+        <div class="zoom-btns" id="zoom-stock"></div>
         <div id="stock"></div>
         <div class="news-box" id="news-box"></div>
       </div>
     </div>
   </div>
 
-  <div class="panel"><h2>科创50指数 K线</h2><div id="ikline"></div></div>
+  <div class="panel"><h2>科创50指数 K线</h2><div class="zoom-btns" id="zoom-index"></div><div id="ikline"></div></div>
   <div class="panel"><h2>择时净值对比: 买入持有 vs 均线择时</h2><div id="nav"></div></div>
   <div class="panel"><h2>买入持有回撤</h2><div id="dd"></div></div>
   <div class="panel"><h2>分年度收益 (买入持有)</h2><div id="yearly"></div></div>
@@ -276,6 +281,21 @@ function calcMA(n, kline) {
     if (i < n - 1) return null;
     let s = 0; for (let j = i - n + 1; j <= i; j++) s += kline[j][1];
     return +(s / n).toFixed(2);
+  });
+}
+
+// 区间快捷按钮: 3月/6月/1年/全部
+function addZoomBtns(elId, chart, len) {
+  const presets = [['3月', 63], ['6月', 126], ['1年', 252], ['全部', null]];
+  const el = document.getElementById(elId);
+  el.innerHTML = presets.map(([t], i) => `<button data-i="${i}">${t}</button>`).join('');
+  el.querySelectorAll('button').forEach((btn, i) => btn.onclick = () => {
+    const n = presets[i][1];
+    const opt = n ? { startValue: Math.max(0, len - n), endValue: len - 1 } : { start: 0, end: 100 };
+    chart.dispatchAction({ type: 'dataZoom', dataZoomIndex: 0, ...opt });
+    chart.dispatchAction({ type: 'dataZoom', dataZoomIndex: 1, ...opt });
+    el.querySelectorAll('button').forEach(b => b.classList.remove('sel'));
+    btn.classList.add('sel');
   });
 }
 
@@ -377,6 +397,7 @@ function renderStock(s) {
     series,
   }, true);
 
+  addZoomBtns('zoom-stock', stockChart, s.dates.length);
   renderNews(s);
   document.querySelectorAll('.side-item').forEach(el =>
     el.classList.toggle('sel', el.dataset.code === s.code));
@@ -457,6 +478,7 @@ iChart.setOption({
       data: DATA.vol.map((v, i) => ({ value: v, itemStyle: { color: DATA.kline[i][1] >= DATA.kline[i][0] ? UP : DOWN } })) },
   ],
 });
+addZoomBtns('zoom-index', iChart, DATA.dates.length);
 
 // ---------- 择时净值对比 ----------
 const navChart = echarts.init(document.getElementById('nav'));
